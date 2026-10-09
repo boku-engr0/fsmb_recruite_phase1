@@ -220,10 +220,12 @@ static void publishRmsWindow(uint32_t now) {
     const double iMean = (double)iSum / n;
     double vVariance = ((double)vSqSum / n) - (vMean * vMean);
     double iVariance = ((double)iSqSum / n) - (iMean * iMean);
+    // Ensure non-negative variance before computing RMS
     if (vVariance < 0.0) vVariance = 0.0;
     if (iVariance < 0.0) iVariance = 0.0;
 
     Config cfg;
+    // Take a snapshot of the current configuration
     if (readConfigSnapshot(cfg)) {
       Measurement next;
       next.voltageRms = (float)(sqrt(vVariance) * cfg.vScale);
@@ -370,20 +372,20 @@ static void printStatus() {
     printLine("ERR busy; try again");
     return;
   }
-  State stateCopy;
-  Fault faultCopy;
-  bool relayCopy;
+  State st;
+  Fault flt;
+  bool rly;
   if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(50)) != pdTRUE) { 
     printLine("ERR busy; try again");
     return;
   }
-  stateCopy = state; faultCopy = fault; relayCopy = relayCommandedOn;
+  st = state; flt = fault; rly = relayCommandedOn;
   xSemaphoreGive(stateMutex);
   if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
     return;
   }
-  Serial.printf("STATE=%s FAULT=%s RELAY_CMD=%s\n", stateName(stateCopy), f
-    aultName(faultCopy), relayCopy ? "ON" : "OFF");
+  Serial.printf("STATE=%s FAULT=%s RELAY_CMD=%s\n", stateName(st), f
+    aultName(flt), rly ? "ON" : "OFF");
   Serial.printf("V_RMS=%.3f I_RMS=%.3f SAMPLES=%lu MEAS_VALID=%s AGE_MS=%lu\n",
     m.voltageRms, m.voltageRms, m.currentRms, (unsigned long)m.sampleCount,
     m.currentRms, (unsigned long)m.sampleCount,
@@ -511,7 +513,7 @@ static void handleCommand(char *line) {
       printLine("ERR cannot reset: readings unsafe or sensor data stale");
       return;
     }
-    if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(50)) == pdhandleCommandTRUE) {
       state = STATE_WAITING_FOR_SAFE;
       fault = FAULT_NONE;
       stateSinceMs = now;
@@ -553,19 +555,19 @@ static void serialTask(void *parameter) {
       lastTelemetry = now;
       Measurement m;
       if (readMeasurementSnapshot(m)) {
-        State stateCopy;
-        Fault faultCopy;
-        bool relayCopy;
+        State st;
+        Fault flt;
+        bool rly;
         if (xSemaphoreTake(stateMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-          stateCopy = state; faultCopy = fault; relayCopy = relayCommandedOn;
+          st = state; flt = fault; rly = relayCommandedOn;
           xSemaphoreGive(stateMutex);
         } else {
-          stateCopy = STATE_TRIPPED; faultCopy = FAULT_SENSOR_INVALID; relayCopy = false;
+          st = STATE_TRIPPED; flt = FAULT_SENSOR_INVALID; rly = false;
         }
         if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
           Serial.printf("TELEMETRY,V=%.3f,I=%.3f,VALID=%u,STATE=%s,FAULT=%s,RELAY_CMD=%u\n",
             m.voltageRms, m.currentRms, m.valid ? 1U : 0U,
-            stateName(stateCopy), faultName(faultCopy), relayCopy ? 1U : 0U);
+            stateName(st), faultName(flt), rly ? 1U : 0U);
           xSemaphoreGive(serialMutex);
         }
       }
