@@ -1,3 +1,7 @@
+#### Video demo 👇
+---
+[DRIVE_LINK](https://drive.google.com/file/d/1QdF8cLGoUGWj9jDq1L8lWFXvCwWL2edd/view?usp=sharing)
+
 # Device Protector (Bare-Metal / Arduino Nano)
 
 A proof-of-concept protection relay system written for the **Arduino Nano (ATmega328P)**. It continuously monitors AC voltage and current using the Nano's analog inputs, computes true RMS values across a rolling 200 ms sampling window, and cuts off a load relay whenever measurements go outside safe thresholds.
